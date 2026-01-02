@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Nuxt
+.nuxt/
+.output/
+dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local
+.DS_Store
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,8 @@
+# robots.txt for Freddy Fazbear's Pizza
+# Allow all search engines to crawl public pages
+# Block admin pages from being indexed
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /admin
