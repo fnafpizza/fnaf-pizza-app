@@ -18,7 +18,9 @@ export default defineNuxtConfig({
 
   nitro: {
     // Disable default error handling in development
-    devErrorHandler: undefined as any
+    devErrorHandler: undefined as any,
+    // Netlify deployment preset
+    preset: 'netlify'
   },
 
   app: {
