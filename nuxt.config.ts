@@ -52,11 +52,15 @@ export default defineNuxtConfig({
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     adminPassword: process.env.ADMIN_PASSWORD,
+    pusherAppId: process.env.PUSHER_APP_ID,
+    pusherSecret: process.env.PUSHER_SECRET,
 
     // Public keys (exposed to client)
     public: {
       stripePublishableKey: process.env.NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      pusherKey: process.env.PUSHER_KEY,
+      pusherCluster: process.env.PUSHER_CLUSTER,
     }
   },
 

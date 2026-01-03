@@ -1,4 +1,5 @@
 import { readOrders, writeOrders } from '~/server/utils/orderStorage'
+import { emitOrderEvent } from '~/server/utils/pusherServer'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -48,6 +49,9 @@ export default defineEventHandler(async (event) => {
     await writeOrders(data)
 
     console.log(`🗑️  Deleted order: ${deletedOrder.orderNumber} (${deletedOrder.id})`)
+
+    // Emit Pusher event
+    await emitOrderEvent('order:deleted', { orderId: deletedOrder.id })
 
     return {
       success: true,

@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue'
-import { io, Socket } from 'socket.io-client'
+import Pusher from 'pusher-js'
 import type { Order } from '~/server/types/order'
 
 export function useSocketOrders(options?: {
@@ -11,13 +11,14 @@ export function useSocketOrders(options?: {
   const error = ref<string | null>(null)
   const connected = ref(false)
 
-  let socket: Socket | null = null
+  let pusher: Pusher | null = null
+  let channel: any = null
   let pollIntervalId: NodeJS.Timeout | null = null
 
   const isAdmin = options?.isAdmin || false
   const pollInterval = options?.pollInterval || 5000
 
-  // Fetch orders via REST API (fallback)
+  // Fetch orders via REST API (initial load & fallback)
   const fetchOrders = async () => {
     try {
       loading.value = true
@@ -36,68 +37,76 @@ export function useSocketOrders(options?: {
     }
   }
 
-  // Connect to socket.io
-  const connectSocket = () => {
-    const auth: any = {}
+  // Connect to Pusher
+  const connectPusher = () => {
+    const config = useRuntimeConfig()
 
-    // Add admin token if admin mode
-    if (isAdmin && process.client) {
-      const adminToken = localStorage.getItem('fnaf-admin-auth')
-      auth.token = adminToken
+    if (!config.public.pusherKey || !config.public.pusherCluster) {
+      console.warn('⚠️  Pusher not configured, falling back to polling')
+      startPolling()
+      return
     }
 
-    socket = io({
-      auth,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5
-    })
+    try {
+      // Initialize Pusher
+      pusher = new Pusher(config.public.pusherKey, {
+        cluster: config.public.pusherCluster,
+      })
 
-    // Connection events
-    socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket?.id)
-      connected.value = true
-      error.value = null
-      stopPolling()
-      fetchOrders() // Initial fetch
-    })
+      // Subscribe to orders channel
+      channel = pusher.subscribe('orders')
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected')
-      connected.value = false
-      startPolling() // Fallback
-    })
+      // Connection events
+      pusher.connection.bind('connected', () => {
+        console.log('✅ Pusher connected')
+        connected.value = true
+        error.value = null
+        stopPolling()
+        fetchOrders() // Initial fetch
+      })
 
-    socket.on('connect_error', (err) => {
-      console.error('Socket error:', err)
-      connected.value = false
-      error.value = 'WebSocket failed, using polling'
-      startPolling() // Fallback
-    })
+      pusher.connection.bind('disconnected', () => {
+        console.log('❌ Pusher disconnected')
+        connected.value = false
+        startPolling() // Fallback
+      })
 
-    // Order events
-    socket.on('order:created', (order: Order) => {
-      console.log('📨 Order created:', order.orderNumber)
-      orders.value = [order, ...orders.value]
-    })
+      pusher.connection.bind('error', (err: any) => {
+        console.error('Pusher error:', err)
+        connected.value = false
+        error.value = 'Real-time connection failed, using polling'
+        startPolling() // Fallback
+      })
 
-    socket.on('order:updated', (updatedOrder: Order) => {
-      console.log('📨 Order updated:', updatedOrder.orderNumber)
-      const index = orders.value.findIndex(o => o.id === updatedOrder.id)
-      if (index !== -1) {
-        orders.value[index] = updatedOrder
-      }
-    })
+      // Order events
+      channel.bind('order:created', (order: Order) => {
+        console.log('📨 Order created:', order.orderNumber)
+        orders.value = [order, ...orders.value]
+      })
 
-    socket.on('order:deleted', (data: { orderId: string }) => {
-      console.log('📨 Order deleted:', data.orderId)
-      orders.value = orders.value.filter(o => o.id !== data.orderId)
-    })
+      channel.bind('order:updated', (updatedOrder: Order) => {
+        console.log('📨 Order updated:', updatedOrder.orderNumber)
+        const index = orders.value.findIndex(o => o.id === updatedOrder.id)
+        if (index !== -1) {
+          orders.value[index] = updatedOrder
+        }
+      })
 
-    socket.on('orders:refresh', (allOrders: Order[]) => {
-      console.log('📨 Orders refresh')
-      orders.value = allOrders
-    })
+      channel.bind('order:deleted', (data: { orderId: string }) => {
+        console.log('📨 Order deleted:', data.orderId)
+        orders.value = orders.value.filter(o => o.id !== data.orderId)
+      })
+
+      channel.bind('orders:refresh', (allOrders: Order[]) => {
+        console.log('📨 Orders refresh')
+        orders.value = allOrders
+      })
+
+      console.log('🔄 Pusher initialized')
+    } catch (err) {
+      console.error('Failed to initialize Pusher:', err)
+      startPolling()
+    }
   }
 
   // Start polling (fallback)
@@ -119,9 +128,10 @@ export function useSocketOrders(options?: {
 
   // Disconnect
   const disconnect = () => {
-    if (socket) {
-      socket.disconnect()
-      socket = null
+    if (pusher) {
+      pusher.disconnect()
+      pusher = null
+      channel = null
     }
     stopPolling()
   }
@@ -134,10 +144,7 @@ export function useSocketOrders(options?: {
   // Lifecycle
   onMounted(() => {
     if (process.client) {
-      // Always use polling for serverless deployments (Netlify, Vercel, etc.)
-      console.log('🔄 Using polling for real-time updates')
-      connected.value = false
-      startPolling()
+      connectPusher()
     }
   })
 

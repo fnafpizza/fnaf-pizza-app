@@ -1,6 +1,7 @@
 import { readOrders, writeOrders } from './orderStorage'
 import type { Order, OrderItem, OrderStatus } from '../types/order'
 import { OrderStatus as OrderStatusEnum } from '../types/order'
+import { emitOrderEvent } from './pusherServer'
 
 /**
  * Generate a human-friendly order number
@@ -54,6 +55,9 @@ export async function createOrder(
   await writeOrders(data)
 
   console.log(`Order created: ${order.orderNumber} (${order.id})`)
+
+  // Emit Pusher event
+  await emitOrderEvent('order:created', order)
 
   return order
 }
@@ -132,6 +136,9 @@ export async function updateOrderStatus(
   await writeOrders(data)
 
   console.log(`Order ${order.orderNumber}: ${oldStatus} → ${newStatus} (manual override)`)
+
+  // Emit Pusher event
+  await emitOrderEvent('order:updated', order)
 
   return order
 }
@@ -232,6 +239,9 @@ export async function autoUpdateOrderStatuses(): Promise<number> {
   if (updatedCount > 0) {
     await writeOrders(data)
     console.log(`✅ Auto-updated ${updatedCount} order(s)`)
+
+    // Emit Pusher event for refresh
+    await emitOrderEvent('orders:refresh', data.orders)
   }
 
   return updatedCount

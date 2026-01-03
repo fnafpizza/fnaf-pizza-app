@@ -17,6 +17,8 @@
     "@stripe/stripe-js": "^8.6.0",
     "@vueuse/core": "^14.1.0",
     "pinia": "^3.0.4",
+    "pusher": "^5.2.0",
+    "pusher-js": "^8.4.0",
     "stripe": "^20.1.0"
   }
 }
