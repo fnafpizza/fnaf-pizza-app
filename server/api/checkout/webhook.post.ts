@@ -131,7 +131,7 @@ export default defineEventHandler(async (event) => {
       )
 
       console.log(`✅ Webhook processed: Order ${order.orderNumber} created successfully!`)
-      console.log('📍 Order file location: server/data/orders.json')
+      console.log('💾 Saved to Netlify Blobs storage')
 
       return {
         received: true,

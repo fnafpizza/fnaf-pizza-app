@@ -9,8 +9,6 @@
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
-    "@types/socket.io": "^3.0.1",
-    "@types/socket.io-client": "^1.4.36",
     "nuxt": "^3.15.4"
   },
   "dependencies": {
@@ -19,8 +17,6 @@
     "@stripe/stripe-js": "^8.6.0",
     "@vueuse/core": "^14.1.0",
     "pinia": "^3.0.4",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
     "stripe": "^20.1.0"
   }
 }

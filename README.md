@@ -15,7 +15,7 @@ A Five Nights at Freddy's themed pizza ordering application built with Nuxt 3, f
   - Night Shift (Meat Lovers)
 - **Interactive Pizza Modals**: Click any pizza to view FNAF-themed ingredient details with camera feed effects
 - **Shopping Cart**: Floating cart button with badge counter and slide-out panel
-- **Real-time Order Tracking**: Live updates via WebSocket with camera-style order boards
+- **Real-time Order Tracking**: Live polling updates (5s) with camera-style order boards
 - **Stripe Checkout**: Secure payment processing with test mode
 - **Order Status Updates**: Track orders through Preparing → Baking → Out for Delivery → Delivered
 - **Responsive Design**: Fully responsive with mobile touch support
@@ -27,7 +27,7 @@ A Five Nights at Freddy's themed pizza ordering application built with Nuxt 3, f
   - Demo password display for testing
 - **Kanban Board**: Drag-and-drop order management with security camera theme
   - 4 status columns (CAM-01 through CAM-04)
-  - Real-time WebSocket updates
+  - Real-time polling updates (5s)
   - Glitch effects and red alert animations
 - **Order Table View**: Alternative table layout (deprecated in favor of kanban)
 - **Order Management**:
@@ -58,14 +58,13 @@ A Five Nights at Freddy's themed pizza ordering application built with Nuxt 3, f
   - Background scroll prevention when modals open
 
 ### Technical Features
-- **Real-time Updates**: Socket.IO for instant order synchronization
-- **Polling Fallback**: 5-second polling when WebSocket unavailable
-- **Persistent Storage**: File-based order storage with JSON
+- **Real-time Updates**: 5-second polling for order synchronization
+- **Persistent Storage**: Netlify Blobs for serverless-compatible storage
 - **Order Cleanup**: Automatic cleanup of old delivered orders
 - **SEO Optimized**: Meta tags, sitemap.xml, robots.txt
 - **TypeScript**: Full type safety across the application
 - **Pinia State Management**: Cart and application state
-- **Composables**: Reusable logic for orders, WebSocket, and drag-and-drop
+- **Composables**: Reusable logic for orders, polling, and drag-and-drop
 - **Middleware**: Admin authentication protection
 - **API Routes**: RESTful endpoints for orders, auth, and webhooks
 - **Payment Integration**: Stripe Checkout with webhook support
@@ -75,7 +74,7 @@ A Five Nights at Freddy's themed pizza ordering application built with Nuxt 3, f
 - **Framework**: [Nuxt 3](https://nuxt.com/)
 - **UI**: Vue 3 + Tailwind CSS
 - **State Management**: Pinia
-- **Real-time**: Socket.IO
+- **Storage**: Netlify Blobs
 - **Payments**: Stripe
 - **Drag & Drop**: @vueuse/core
 - **Animations**: Custom CSS keyframes with FNAF theme
@@ -110,14 +109,19 @@ A Five Nights at Freddy's themed pizza ordering application built with Nuxt 3, f
    NUXT_PUBLIC_BASE_URL=http://localhost:3000
    ```
 
-4. **Run development server**
+4. **Install Netlify CLI** (required for Netlify Blobs locally)
    ```bash
-   npm run dev
+   npm install -g netlify-cli
    ```
 
-5. **Open your browser**
+5. **Run development server**
+   ```bash
+   netlify dev
+   ```
 
-   Navigate to `http://localhost:3000`
+6. **Open your browser**
+
+   Navigate to `http://localhost:8888` (Netlify CLI default port)
 
 ## 🎯 Usage
 
@@ -165,8 +169,7 @@ pizza-app/
 ├── public/             # Static assets
 ├── server/             # Backend API
 │   ├── api/           # API endpoints
-│   ├── data/          # Order storage
-│   ├── plugins/       # Socket.IO plugin
+│   ├── data/          # Local dev storage
 │   └── utils/         # Server utilities
 ├── stores/            # Pinia stores
 └── nuxt.config.ts     # Nuxt configuration
