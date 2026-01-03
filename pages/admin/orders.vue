@@ -202,10 +202,11 @@ const confirmDelete = async () => {
 
     displayToast(response.message || 'Order deleted successfully')
 
-    // Close modal and refresh orders
+    // Close modal
     isDeleteModalOpen.value = false
     orderToDelete.value = null
-    await refreshOrders()
+
+    // Pusher will update the UI automatically via order:deleted event
   } catch (err: any) {
     displayToast('Failed to delete order: ' + (err.data?.message || err.message))
   } finally {
