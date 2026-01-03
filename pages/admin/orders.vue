@@ -47,15 +47,6 @@
         </div>
       </div>
 
-      <!-- Success/Error Messages -->
-      <div v-if="successMessage" class="bg-green-900 bg-opacity-50 border border-green-500 rounded-lg p-4 mb-4">
-        <p class="text-green-400">{{ successMessage }}</p>
-      </div>
-
-      <div v-if="errorMessage" class="bg-fnaf-red bg-opacity-20 border border-fnaf-red rounded-lg p-4 mb-4">
-        <p class="text-fnaf-red">{{ errorMessage }}</p>
-      </div>
-
       <!-- Orders Kanban Board -->
       <div class="bg-fnaf-dark border border-fnaf-gold rounded-lg p-6">
         <h2 class="text-xl font-bold text-fnaf-gold mb-4">Security Camera Feed</h2>
@@ -92,6 +83,12 @@
       @close="closeDeleteModal"
       @confirm="confirmDelete"
     />
+
+    <!-- Status Toast Notification -->
+    <StatusToast
+      :visible="showToast"
+      :message="toastMessage"
+    />
   </div>
 </template>
 
@@ -99,6 +96,7 @@
 import type { Order } from '~/server/types/order'
 import KanbanBoard from '~/components/admin/KanbanBoard.vue'
 import DeleteOrderModal from '~/components/admin/DeleteOrderModal.vue'
+import StatusToast from '~/components/admin/StatusToast.vue'
 
 definePageMeta({
   middleware: 'admin'
@@ -117,11 +115,20 @@ const {
 })
 
 const cleanupLoading = ref(false)
-const successMessage = ref('')
-const errorMessage = ref('')
+const showToast = ref(false)
+const toastMessage = ref('')
 const isDeleteModalOpen = ref(false)
 const orderToDelete = ref<Order | null>(null)
 const isDeleting = ref(false)
+
+// Toast helper function
+const displayToast = (message: string, duration = 3000) => {
+  toastMessage.value = message
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, duration)
+}
 
 const router = useRouter()
 
@@ -150,17 +157,11 @@ const handleStatusChange = async (order: Order, newStatus: string) => {
       }
     })
 
-    successMessage.value = `Order ${order.orderNumber} status updated to ${newStatus}`
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
+    displayToast(`Order ${order.orderNumber} → ${newStatus.replace('_', ' ').toUpperCase()}`)
 
     // Pusher will update the UI automatically via order:updated event
   } catch (err: any) {
-    errorMessage.value = 'Failed to update order status'
-    setTimeout(() => {
-      errorMessage.value = ''
-    }, 3000)
+    displayToast('Failed to update order status')
   }
 }
 
@@ -189,20 +190,14 @@ const confirmDelete = async () => {
       }
     })
 
-    successMessage.value = response.message
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
+    displayToast(response.message || 'Order deleted successfully')
 
     // Close modal and refresh orders
     isDeleteModalOpen.value = false
     orderToDelete.value = null
     await refreshOrders()
   } catch (err: any) {
-    errorMessage.value = 'Failed to delete order: ' + (err.data?.message || err.message)
-    setTimeout(() => {
-      errorMessage.value = ''
-    }, 3000)
+    displayToast('Failed to delete order: ' + (err.data?.message || err.message))
   } finally {
     isDeleting.value = false
   }
@@ -226,18 +221,12 @@ const handleCleanup = async () => {
       method: 'POST'
     })
 
-    successMessage.value = response.message
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
+    displayToast(response.message || 'Cleanup completed')
 
     // Refresh orders
     await refreshOrders()
   } catch (err: any) {
-    errorMessage.value = 'Failed to cleanup orders'
-    setTimeout(() => {
-      errorMessage.value = ''
-    }, 3000)
+    displayToast('Failed to cleanup orders')
   } finally {
     cleanupLoading.value = false
   }
