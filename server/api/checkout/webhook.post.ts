@@ -3,8 +3,6 @@ import { createOrder } from '~/server/utils/orderManager'
 import type { OrderItem } from '~/server/types/order'
 
 export default defineEventHandler(async (event) => {
-  console.log('🔔 Webhook received!')
-
   const config = useRuntimeConfig()
   const stripe = new Stripe(config.stripeSecretKey, {
     apiVersion: '2024-12-18.acacia',
@@ -14,7 +12,6 @@ export default defineEventHandler(async (event) => {
     // Get the raw body for signature verification
     const body = await readRawBody(event)
     if (!body) {
-      console.error('❌ Missing request body')
       throw createError({
         statusCode: 400,
         message: 'Missing request body'
@@ -33,22 +30,16 @@ export default defineEventHandler(async (event) => {
     // Verify webhook signature
     const webhookSecret = config.stripeWebhookSecret || ''
     if (!webhookSecret) {
-      console.error('❌ STRIPE_WEBHOOK_SECRET not configured')
       throw createError({
         statusCode: 500,
         message: 'Webhook secret not configured'
       })
     }
 
-    console.log('✅ Webhook secret found')
-
     let stripeEvent: Stripe.Event
     try {
       stripeEvent = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-      console.log('✅ Webhook signature verified')
-      console.log('📨 Event type:', stripeEvent.type)
     } catch (err: any) {
-      console.error('❌ Webhook signature verification failed:', err.message)
       throw createError({
         statusCode: 400,
         message: `Webhook signature verification failed: ${err.message}`
@@ -57,27 +48,18 @@ export default defineEventHandler(async (event) => {
 
     // Handle the checkout.session.completed event
     if (stripeEvent.type === 'checkout.session.completed') {
-      console.log('✅ Processing checkout.session.completed event')
       const session = stripeEvent.data.object as Stripe.Checkout.Session
-      console.log('📦 Session ID:', session.id)
 
       // Extract order data from metadata
       const orderItemsJson = session.metadata?.orderItems
       const orderTotal = session.metadata?.orderTotal
 
-      console.log('📋 Metadata:', session.metadata)
-
       if (!orderItemsJson || !orderTotal) {
-        console.error('❌ Missing order data in session metadata:', session.id)
-        console.error('orderItems:', orderItemsJson)
-        console.error('orderTotal:', orderTotal)
         throw createError({
           statusCode: 400,
           message: 'Missing order data in session metadata'
         })
       }
-
-      console.log('✅ Order metadata found')
 
       // Retrieve full session with line items
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
@@ -88,9 +70,7 @@ export default defineEventHandler(async (event) => {
       let minimalItems: Array<{ id: number; quantity: number }>
       try {
         minimalItems = JSON.parse(orderItemsJson)
-        console.log('✅ Parsed', minimalItems.length, 'items from metadata')
       } catch (err) {
-        console.error('❌ Failed to parse order items:', err)
         throw createError({
           statusCode: 400,
           message: 'Invalid order items data'
@@ -120,18 +100,12 @@ export default defineEventHandler(async (event) => {
         }
       })
 
-      console.log('✅ Reconstructed', items.length, 'full order items')
-
       // Create order in our system
-      console.log('💾 Creating order in database...')
       const order = await createOrder(
         session.id,
         items,
         parseFloat(orderTotal)
       )
-
-      console.log(`✅ Webhook processed: Order ${order.orderNumber} created successfully!`)
-      console.log('💾 Saved to Netlify Blobs storage')
 
       return {
         received: true,
@@ -143,8 +117,6 @@ export default defineEventHandler(async (event) => {
     return { received: true }
 
   } catch (error: any) {
-    console.error('Webhook handler error:', error)
-
     // Return error response
     if (error.statusCode) {
       throw error

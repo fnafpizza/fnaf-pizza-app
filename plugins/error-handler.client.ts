@@ -3,6 +3,6 @@ export default defineNuxtPlugin(() => {
 
   // Override default error handling
   nuxtApp.hook('vue:error', (error) => {
-    console.log('Error caught:', error)
+    console.error('Error caught:', error)
   })
 })

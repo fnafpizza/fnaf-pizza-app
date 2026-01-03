@@ -33,7 +33,6 @@ export async function createOrder(
   // Check if order already exists (duplicate webhook event)
   const existing = data.orders.find(order => order.id === sessionId)
   if (existing) {
-    console.log(`Order ${sessionId} already exists, skipping creation`)
     return existing
   }
 
@@ -53,8 +52,6 @@ export async function createOrder(
   data.nextOrderNumber++
 
   await writeOrders(data)
-
-  console.log(`Order created: ${order.orderNumber} (${order.id})`)
 
   // Emit Pusher event
   await emitOrderEvent('order:created', order)
@@ -126,7 +123,6 @@ export async function updateOrderStatus(
   }
 
   const order = data.orders[orderIndex]
-  const oldStatus = order.status
 
   // Update status, timestamp, and set manual override flag
   order.status = newStatus
@@ -134,8 +130,6 @@ export async function updateOrderStatus(
   order.manualOverride = true
 
   await writeOrders(data)
-
-  console.log(`Order ${order.orderNumber}: ${oldStatus} → ${newStatus} (manual override)`)
 
   // Emit Pusher event
   await emitOrderEvent('order:updated', order)
@@ -164,7 +158,6 @@ export async function cleanupOldOrders(daysOld: number = 7): Promise<number> {
 
   if (removed > 0) {
     await writeOrders(data)
-    console.log(`Cleaned up ${removed} old orders`)
   }
 
   return removed
@@ -227,18 +220,15 @@ export async function autoUpdateOrderStatuses(): Promise<number> {
 
     // Update status if changed
     if (newStatus && newStatus !== order.status) {
-      const oldStatus = order.status
       order.status = newStatus
       order.updatedAt = now.toISOString()
       updatedCount++
-      console.log(`⏰ Auto-updated order ${order.orderNumber}: ${oldStatus} → ${newStatus} (${minutesElapsed} mins elapsed)`)
     }
   }
 
   // Save changes if any orders were updated
   if (updatedCount > 0) {
     await writeOrders(data)
-    console.log(`✅ Auto-updated ${updatedCount} order(s)`)
 
     // Emit Pusher event for refresh
     await emitOrderEvent('orders:refresh', data.orders)

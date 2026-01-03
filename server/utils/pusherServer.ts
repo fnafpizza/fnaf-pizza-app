@@ -16,7 +16,6 @@ function getPusher(): Pusher | null {
 
   // Check if Pusher is configured
   if (!config.pusherAppId || !config.pusherSecret || !config.public.pusherKey || !config.public.pusherCluster) {
-    console.warn('⚠️  Pusher not configured, real-time updates disabled')
     return null
   }
 
@@ -29,10 +28,9 @@ function getPusher(): Pusher | null {
       cluster: config.public.pusherCluster,
       useTLS: true
     })
-    console.log('✅ Pusher initialized')
     return pusherInstance
   } catch (error) {
-    console.error('❌ Failed to initialize Pusher:', error)
+    console.error('Failed to initialize Pusher:', error)
     return null
   }
 }
@@ -47,14 +45,12 @@ export async function emitOrderEvent(
   const pusher = getPusher()
 
   if (!pusher) {
-    console.warn('⚠️  Pusher not available, event not emitted:', event)
     return
   }
 
   try {
     await pusher.trigger('orders', event, data)
-    console.log(`📡 Pusher event emitted: ${event}`)
   } catch (error) {
-    console.error(`❌ Failed to emit Pusher event ${event}:`, error)
+    console.error(`Failed to emit Pusher event ${event}:`, error)
   }
 }

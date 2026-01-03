@@ -69,8 +69,6 @@
 </template>
 
 <script setup lang="ts">
-import { useOrders } from '~/composables/useOrders'
-
 // Set page metadata
 useHead({
   title: 'Order Tracking - Freddy Fazbear\'s Pizza',

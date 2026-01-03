@@ -49,8 +49,6 @@ export default defineEventHandler(async (event) => {
     // Save changes
     await writeOrders(data)
 
-    console.log(`🗑️  Deleted order: ${deletedOrder.orderNumber} (${deletedOrder.id})`)
-
     // Emit Pusher event
     await emitOrderEvent('order:deleted', { orderId: deletedOrder.id })
 

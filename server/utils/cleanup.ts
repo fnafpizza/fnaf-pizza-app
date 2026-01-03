@@ -32,8 +32,6 @@ export async function runCleanupTask(daysOld: number = 7): Promise<{
  * Example: scheduleCleanup(86400000) // Run daily (24 hours)
  */
 export function scheduleCleanup(intervalMs: number = 86400000, daysOld: number = 7) {
-  console.log(`Cleanup scheduled to run every ${intervalMs / 1000 / 60} minutes`)
-
   // Run immediately
   runCleanupTask(daysOld)
 
@@ -45,7 +43,6 @@ export function scheduleCleanup(intervalMs: number = 86400000, daysOld: number =
   return {
     stop: () => {
       clearInterval(interval)
-      console.log('Cleanup schedule stopped')
     }
   }
 }

@@ -88,8 +88,6 @@ export async function writeOrders(data: OrdersData): Promise<void> {
 
       const store = getStore(STORE_NAME)
       await store.setJSON(ORDERS_KEY, data)
-
-      console.log('✅ Orders saved to Netlify Blobs')
     } catch (error: any) {
       console.error('Failed to write orders to Netlify Blobs:', error)
       throw error

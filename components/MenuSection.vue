@@ -49,19 +49,13 @@ const menuRef = ref(null)
 let observer = null
 
 onMounted(() => {
-  console.log('Menu component mounted!')
-
   if (process.client && menuRef.value) {
-    console.log('Setting up Intersection Observer...')
-
     // Create intersection observer
     observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          console.log('Intersection detected! isIntersecting:', entry.isIntersecting)
           if (entry.isIntersecting) {
             isRevealed.value = true
-            console.log('Menu revealed with Intersection Observer!')
           }
         })
       },
@@ -73,7 +67,6 @@ onMounted(() => {
 
     // Start observing the menu section
     observer.observe(menuRef.value)
-    console.log('Observer attached to menu section!')
   }
 })
 

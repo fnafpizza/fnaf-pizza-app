@@ -7,8 +7,6 @@ import { createOrder } from '~/server/utils/orderManager'
  */
 export default defineEventHandler(async (event) => {
   try {
-    console.log('🧪 Creating test order...')
-
     // Create a test order with sample items
     const testItems = [
       {
@@ -38,15 +36,12 @@ export default defineEventHandler(async (event) => {
 
     const order = await createOrder(testSessionId, testItems, total)
 
-    console.log(`✅ Test order created: ${order.orderNumber}`)
-
     return {
       success: true,
       message: 'Test order created successfully!',
       order
     }
   } catch (error: any) {
-    console.error('❌ Failed to create test order:', error)
     throw createError({
       statusCode: 500,
       message: error.message || 'Failed to create test order'

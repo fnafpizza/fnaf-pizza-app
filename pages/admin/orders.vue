@@ -115,11 +115,9 @@ definePageMeta({
 const {
   orders,
   loading,
-  error: fetchError,
   connected,
   refresh: refreshOrders
 } = useSocketOrders({
-  isAdmin: true,
   pollInterval: 10000
 })
 

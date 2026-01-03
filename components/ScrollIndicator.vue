@@ -15,8 +15,6 @@
 const { scrollY } = useScrollReveal()
 
 const scrollToMenu = () => {
-  console.log('ScrollIndicator clicked, scrolling to menu section...')
-
   // Find the menu section and scroll to it
   const menuSection = document.querySelector('.menu-section')
   if (menuSection) {
