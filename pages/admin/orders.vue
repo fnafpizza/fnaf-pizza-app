@@ -84,6 +84,14 @@
       @confirm="confirmDelete"
     />
 
+    <!-- Cleanup Modal -->
+    <CleanupModal
+      :is-open="isCleanupModalOpen"
+      :is-processing="cleanupLoading"
+      @close="closeCleanupModal"
+      @confirm="confirmCleanup"
+    />
+
     <!-- Status Toast Notification -->
     <StatusToast
       :visible="showToast"
@@ -96,6 +104,7 @@
 import type { Order } from '~/server/types/order'
 import KanbanBoard from '~/components/admin/KanbanBoard.vue'
 import DeleteOrderModal from '~/components/admin/DeleteOrderModal.vue'
+import CleanupModal from '~/components/admin/CleanupModal.vue'
 import StatusToast from '~/components/admin/StatusToast.vue'
 
 definePageMeta({
@@ -120,6 +129,7 @@ const toastMessage = ref('')
 const isDeleteModalOpen = ref(false)
 const orderToDelete = ref<Order | null>(null)
 const isDeleting = ref(false)
+const isCleanupModalOpen = ref(false)
 
 // Toast helper function
 const displayToast = (message: string, duration = 3000) => {
@@ -209,12 +219,13 @@ const closeDeleteModal = () => {
   orderToDelete.value = null
 }
 
-// Cleanup old orders
-const handleCleanup = async () => {
-  if (!confirm('This will remove all completed orders older than 7 days. Continue?')) {
-    return
-  }
+// Open cleanup modal
+const handleCleanup = () => {
+  isCleanupModalOpen.value = true
+}
 
+// Confirm cleanup
+const confirmCleanup = async () => {
   cleanupLoading.value = true
   try {
     const response = await $fetch<{ removed: number; message: string }>('/api/orders/cleanup', {
@@ -223,13 +234,19 @@ const handleCleanup = async () => {
 
     displayToast(response.message || 'Cleanup completed')
 
-    // Refresh orders
+    // Close modal and refresh orders
+    isCleanupModalOpen.value = false
     await refreshOrders()
   } catch (err: any) {
     displayToast('Failed to cleanup orders')
   } finally {
     cleanupLoading.value = false
   }
+}
+
+// Close cleanup modal
+const closeCleanupModal = () => {
+  isCleanupModalOpen.value = false
 }
 
 // Logout
