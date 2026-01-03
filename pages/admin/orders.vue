@@ -155,8 +155,7 @@ const handleStatusChange = async (order: Order, newStatus: string) => {
       successMessage.value = ''
     }, 3000)
 
-    // Refresh orders
-    await refreshOrders()
+    // Pusher will update the UI automatically via order:updated event
   } catch (err: any) {
     errorMessage.value = 'Failed to update order status'
     setTimeout(() => {
