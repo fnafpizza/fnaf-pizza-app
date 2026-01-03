@@ -1,14 +1,15 @@
 import { readOrders, writeOrders } from '~/server/utils/orderStorage'
 import { emitOrderEvent } from '~/server/utils/pusherServer'
+import { verifyAdminToken } from '~/server/utils/adminAuth'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
-  // Check authentication
+  // Verify admin authentication
   const authHeader = getHeader(event, 'authorization')
   const token = authHeader?.replace('Bearer ', '')
 
-  if (!token || token !== config.adminPassword) {
+  if (!verifyAdminToken(token, config.adminPassword)) {
     throw createError({
       statusCode: 401,
       message: 'Unauthorized'

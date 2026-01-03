@@ -1,21 +1,22 @@
 import { updateOrderStatus } from '~/server/utils/orderManager'
 import { OrderStatus } from '~/server/types/order'
+import { verifyAdminToken } from '~/server/utils/adminAuth'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Simple authentication check (will be enhanced with middleware later)
+    // Verify admin authentication
     const config = useRuntimeConfig()
     const authHeader = getHeader(event, 'authorization')
-    const adminPassword = config.adminPassword || config.public.adminPassword
+    const token = authHeader?.replace('Bearer ', '')
 
-    if (!adminPassword) {
+    if (!config.adminPassword) {
       throw createError({
         statusCode: 500,
         message: 'Admin password not configured'
       })
     }
 
-    if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
+    if (!verifyAdminToken(token, config.adminPassword)) {
       throw createError({
         statusCode: 401,
         message: 'Unauthorized'
