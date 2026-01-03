@@ -45,12 +45,15 @@ export async function emitOrderEvent(
   const pusher = getPusher()
 
   if (!pusher) {
+    console.warn('[Pusher] Cannot emit event - Pusher not configured')
     return
   }
 
   try {
+    console.log(`[Pusher] Emitting event: ${event}`, data)
     await pusher.trigger('orders', event, data)
+    console.log(`[Pusher] Event ${event} emitted successfully`)
   } catch (error) {
-    console.error(`Failed to emit Pusher event ${event}:`, error)
+    console.error(`[Pusher] Failed to emit event ${event}:`, error)
   }
 }

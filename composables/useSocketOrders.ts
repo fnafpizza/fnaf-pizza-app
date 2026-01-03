@@ -39,11 +39,17 @@ export function useSocketOrders(options?: {
     const config = useRuntimeConfig()
 
     if (!config.public.pusherKey || !config.public.pusherCluster) {
+      console.warn('[Pusher] Missing pusherKey or pusherCluster config, falling back to polling')
+      console.log('[Pusher] Config:', {
+        hasKey: !!config.public.pusherKey,
+        hasCluster: !!config.public.pusherCluster
+      })
       startPolling()
       return
     }
 
     try {
+      console.log('[Pusher] Initializing with cluster:', config.public.pusherCluster)
       // Initialize Pusher
       pusher = new Pusher(config.public.pusherKey, {
         cluster: config.public.pusherCluster,
@@ -54,6 +60,7 @@ export function useSocketOrders(options?: {
 
       // Connection events
       pusher.connection.bind('connected', () => {
+        console.log('[Pusher] Connected successfully')
         connected.value = true
         error.value = null
         stopPolling()
@@ -61,11 +68,13 @@ export function useSocketOrders(options?: {
       })
 
       pusher.connection.bind('disconnected', () => {
+        console.log('[Pusher] Disconnected')
         connected.value = false
         startPolling() // Fallback
       })
 
       pusher.connection.bind('error', (err: any) => {
+        console.error('[Pusher] Connection error:', err)
         connected.value = false
         error.value = 'Real-time connection failed, using polling'
         startPolling() // Fallback
@@ -73,10 +82,12 @@ export function useSocketOrders(options?: {
 
       // Order events
       channel.bind('order:created', (order: Order) => {
+        console.log('[Pusher] Received order:created', order)
         orders.value = [order, ...orders.value]
       })
 
       channel.bind('order:updated', (updatedOrder: Order) => {
+        console.log('[Pusher] Received order:updated', updatedOrder)
         const index = orders.value.findIndex(o => o.id === updatedOrder.id)
         if (index !== -1) {
           orders.value[index] = updatedOrder
@@ -84,10 +95,12 @@ export function useSocketOrders(options?: {
       })
 
       channel.bind('order:deleted', (data: { orderId: string }) => {
+        console.log('[Pusher] Received order:deleted', data)
         orders.value = orders.value.filter(o => o.id !== data.orderId)
       })
 
       channel.bind('orders:refresh', (allOrders: Order[]) => {
+        console.log('[Pusher] Received orders:refresh', allOrders.length, 'orders')
         orders.value = allOrders
       })
     } catch (err) {
