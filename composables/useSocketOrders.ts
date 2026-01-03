@@ -134,15 +134,10 @@ export function useSocketOrders(options?: {
   // Lifecycle
   onMounted(() => {
     if (process.client) {
-      // In development, skip WebSocket and use polling directly
-      if (import.meta.dev) {
-        console.log('🔄 Development mode: Using polling only')
-        connected.value = false
-        startPolling()
-      } else {
-        // In production, use WebSocket with polling fallback
-        connectSocket()
-      }
+      // Always use polling for serverless deployments (Netlify, Vercel, etc.)
+      console.log('🔄 Using polling for real-time updates')
+      connected.value = false
+      startPolling()
     }
   })
 
