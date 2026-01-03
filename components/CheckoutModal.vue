@@ -157,6 +157,7 @@ import { useCartStore } from '~/stores/cart'
 const cartStore = useCartStore()
 const config = useRuntimeConfig()
 const copied = ref(false)
+const isProcessing = ref(false)
 
 const closeModal = () => {
   cartStore.closeCheckoutModal()
@@ -175,6 +176,13 @@ const copyTestCard = async () => {
 }
 
 const handleCheckout = async () => {
+  // Prevent double-clicks and concurrent checkout attempts
+  if (isProcessing.value || cartStore.checkoutLoading) {
+    return
+  }
+
+  isProcessing.value = true
+
   try {
     cartStore.setCheckoutLoading(true)
     cartStore.setCheckoutError(null)
@@ -198,6 +206,10 @@ const handleCheckout = async () => {
     console.error('Checkout error:', error)
     cartStore.setCheckoutError('Failed to start checkout. Please try again.')
     cartStore.setCheckoutLoading(false)
+    // Reset isProcessing after error with delay to prevent rapid retries
+    setTimeout(() => {
+      isProcessing.value = false
+    }, 1000)
   }
 }
 </script>

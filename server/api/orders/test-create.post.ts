@@ -1,11 +1,26 @@
 import { createOrder } from '~/server/utils/orderManager'
+import { verifyAdminToken } from '~/server/utils/adminAuth'
 
 /**
  * TEST ENDPOINT - Create a test order manually
  * This bypasses Stripe and creates an order directly
  * Use this to test if the order board is working
+ * REQUIRES ADMIN AUTHENTICATION
  */
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+
+  // Require admin authentication to prevent unauthorized test order creation
+  const authHeader = getHeader(event, 'authorization')
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!verifyAdminToken(token, config.adminPassword)) {
+    throw createError({
+      statusCode: 401,
+      message: 'Unauthorized - Admin access required'
+    })
+  }
+
   try {
     // Create a test order with sample items
     const testItems = [

@@ -1,4 +1,4 @@
-import { readOrders, writeOrders } from './orderStorage'
+import { readOrders, writeOrders, withLock } from './orderStorage'
 import type { Order, OrderItem, OrderStatus } from '../types/order'
 import { OrderStatus as OrderStatusEnum } from '../types/order'
 import { emitOrderEvent } from './pusherServer'
@@ -21,42 +21,45 @@ function calculateEstimatedReady(): string {
 }
 
 /**
- * Create a new order
+ * Create a new order (atomic operation with lock)
  */
 export async function createOrder(
   sessionId: string,
   items: OrderItem[],
   total: number
 ): Promise<Order> {
-  const data = await readOrders()
+  // Wrap entire read-check-write sequence in lock to prevent race conditions
+  return withLock(async () => {
+    const data = await readOrders()
 
-  // Check if order already exists (duplicate webhook event)
-  const existing = data.orders.find(order => order.id === sessionId)
-  if (existing) {
-    return existing
-  }
+    // Check if order already exists (duplicate webhook event)
+    const existing = data.orders.find(order => order.id === sessionId)
+    if (existing) {
+      return existing
+    }
 
-  const now = new Date().toISOString()
-  const order: Order = {
-    id: sessionId,
-    orderNumber: generateOrderNumber(data.nextOrderNumber),
-    items,
-    total,
-    status: OrderStatusEnum.PREPARING,
-    createdAt: now,
-    updatedAt: now,
-    estimatedReady: calculateEstimatedReady()
-  }
+    const now = new Date().toISOString()
+    const order: Order = {
+      id: sessionId,
+      orderNumber: generateOrderNumber(data.nextOrderNumber),
+      items,
+      total,
+      status: OrderStatusEnum.PREPARING,
+      createdAt: now,
+      updatedAt: now,
+      estimatedReady: calculateEstimatedReady()
+    }
 
-  data.orders.push(order)
-  data.nextOrderNumber++
+    data.orders.push(order)
+    data.nextOrderNumber++
 
-  await writeOrders(data)
+    await writeOrders(data)
 
-  // Emit Pusher event
-  await emitOrderEvent('order:created', order)
+    // Emit Pusher event
+    await emitOrderEvent('order:created', order)
 
-  return order
+    return order
+  })
 }
 
 /**
