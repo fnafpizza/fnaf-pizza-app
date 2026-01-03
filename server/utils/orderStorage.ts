@@ -1,15 +1,11 @@
-import { promises as fs } from 'fs'
-import { join } from 'path'
+import { getStore } from '@netlify/blobs'
 import type { OrdersData } from '../types/order'
 
-const DATA_DIR = join(process.cwd(), 'server', 'data')
-const ORDERS_FILE = join(DATA_DIR, 'orders.json')
-const BACKUP_FILE = join(DATA_DIR, 'orders.backup.json')
-const TEMP_FILE = join(DATA_DIR, 'orders.tmp.json')
+const STORE_NAME = 'orders'
+const ORDERS_KEY = 'orders-data'
 
 // Simple in-memory lock to prevent concurrent writes
 let isLocked = false
-const lockQueue: Array<() => void> = []
 
 /**
  * Acquire lock with timeout and retry logic
@@ -34,12 +30,10 @@ async function acquireLock(timeout = 5000): Promise<void> {
 }
 
 /**
- * Release lock and process queue
+ * Release lock
  */
 function releaseLock(): void {
   isLocked = false
-  const next = lockQueue.shift()
-  if (next) next()
 }
 
 /**
@@ -55,28 +49,15 @@ export async function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Ensure data directory exists
- */
-async function ensureDataDir(): Promise<void> {
-  try {
-    await fs.access(DATA_DIR)
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true })
-  }
-}
-
-/**
- * Read orders from JSON file
+ * Read orders from Netlify Blobs
  */
 export async function readOrders(): Promise<OrdersData> {
-  await ensureDataDir()
-
   try {
-    const data = await fs.readFile(ORDERS_FILE, 'utf-8')
-    return JSON.parse(data)
-  } catch (error: any) {
-    // File doesn't exist or is corrupted, return initial structure
-    if (error.code === 'ENOENT') {
+    const store = getStore(STORE_NAME)
+    const data = await store.get(ORDERS_KEY, { type: 'json' })
+
+    // If no data exists, return initial structure
+    if (!data) {
       return {
         orders: [],
         lastUpdated: new Date().toISOString(),
@@ -84,47 +65,34 @@ export async function readOrders(): Promise<OrdersData> {
       }
     }
 
-    // Try to recover from backup
-    try {
-      console.warn('Orders file corrupted, attempting recovery from backup')
-      const backupData = await fs.readFile(BACKUP_FILE, 'utf-8')
-      return JSON.parse(backupData)
-    } catch {
-      console.error('Backup recovery failed, returning empty data')
-      return {
-        orders: [],
-        lastUpdated: new Date().toISOString(),
-        nextOrderNumber: 1
-      }
+    return data as OrdersData
+  } catch (error: any) {
+    console.error('Failed to read orders from Netlify Blobs:', error)
+    // Return empty data on error
+    return {
+      orders: [],
+      lastUpdated: new Date().toISOString(),
+      nextOrderNumber: 1
     }
   }
 }
 
 /**
- * Write orders to JSON file with atomic operation
+ * Write orders to Netlify Blobs with atomic operation
  */
 export async function writeOrders(data: OrdersData): Promise<void> {
-  await ensureDataDir()
-
   return withLock(async () => {
-    // Create backup of existing file
     try {
-      await fs.copyFile(ORDERS_FILE, BACKUP_FILE)
+      // Update lastUpdated timestamp
+      data.lastUpdated = new Date().toISOString()
+
+      const store = getStore(STORE_NAME)
+      await store.setJSON(ORDERS_KEY, data)
+
+      console.log('✅ Orders saved to Netlify Blobs')
     } catch (error: any) {
-      // Original file might not exist yet, that's okay
-      if (error.code !== 'ENOENT') {
-        console.warn('Failed to create backup:', error.message)
-      }
+      console.error('Failed to write orders to Netlify Blobs:', error)
+      throw error
     }
-
-    // Update lastUpdated timestamp
-    data.lastUpdated = new Date().toISOString()
-
-    // Write to temporary file first
-    const jsonData = JSON.stringify(data, null, 2)
-    await fs.writeFile(TEMP_FILE, jsonData, 'utf-8')
-
-    // Atomic rename (overwrite original)
-    await fs.rename(TEMP_FILE, ORDERS_FILE)
   })
 }
