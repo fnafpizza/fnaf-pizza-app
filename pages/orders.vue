@@ -18,8 +18,18 @@
         </div>
       </div>
 
+      <!-- Waiting for New Order State -->
+      <div v-if="waitingForOrder" class="container mx-auto px-4 py-12">
+        <div class="text-center">
+          <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-fnaf-gold"></div>
+          <p class="text-fnaf-gold font-bold text-xl mt-4">Waiting for your order...</p>
+          <p class="text-gray-400 text-sm mt-2">Your order is being processed ({{ waitAttempts }}/20)</p>
+          <p class="text-gray-500 text-xs mt-1">This usually takes 2-5 seconds</p>
+        </div>
+      </div>
+
       <!-- Loading State -->
-      <div v-if="loading && orders.length === 0" class="container mx-auto px-4 py-12">
+      <div v-else-if="loading && orders.length === 0" class="container mx-auto px-4 py-12">
         <div class="text-center">
           <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-fnaf-gold"></div>
           <p class="text-gray-400 mt-4">Loading orders...</p>
@@ -92,12 +102,77 @@ const isMyOrder = (orderId: string) => {
   return myOrderIds.value.includes(orderId)
 }
 
-onMounted(() => {
+// Order waiting mechanism
+const route = useRoute()
+const waitingForOrder = ref(false)
+const waitAttempts = ref(0)
+let waitInterval: NodeJS.Timeout | null = null
+
+/**
+ * Check if order exists in current orders list
+ */
+const checkOrderExists = (sessionId: string): boolean => {
+  return orders.value.some(order => order.id === sessionId)
+}
+
+/**
+ * Wait for a specific order to appear (after checkout)
+ * Polls every 500ms for up to 10 seconds (20 attempts)
+ */
+const waitForOrder = async (sessionId: string) => {
+  waitingForOrder.value = true
+  waitAttempts.value = 0
+  const maxAttempts = 20 // 20 attempts * 500ms = 10 seconds
+
+  return new Promise<void>((resolve) => {
+    waitInterval = setInterval(async () => {
+      waitAttempts.value++
+
+      // Refresh orders to check for new order
+      await refresh()
+
+      // Check if order now exists
+      if (checkOrderExists(sessionId)) {
+        if (waitInterval) {
+          clearInterval(waitInterval)
+        }
+        waitingForOrder.value = false
+        resolve()
+        return
+      }
+
+      // Timeout after max attempts
+      if (waitAttempts.value >= maxAttempts) {
+        if (waitInterval) {
+          clearInterval(waitInterval)
+        }
+        waitingForOrder.value = false
+        resolve()
+      }
+    }, 500)
+  })
+}
+
+onMounted(async () => {
   // Load user's order IDs from localStorage
   if (process.client) {
     const cached = localStorage.getItem('fnaf-my-orders')
     if (cached) {
       myOrderIds.value = JSON.parse(cached)
+    }
+
+    // Check if we should wait for a specific order
+    const waitForSessionId = route.query.waitFor as string
+    if (waitForSessionId) {
+      // Check if order already exists (fast webhook)
+      if (!checkOrderExists(waitForSessionId)) {
+        // Order doesn't exist yet, wait for it
+        await waitForOrder(waitForSessionId)
+      }
+
+      // Remove query parameter from URL (clean up)
+      const router = useRouter()
+      router.replace({ query: {} })
     }
   }
 })
@@ -126,6 +201,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (updateInterval) {
     clearInterval(updateInterval)
+  }
+  if (waitInterval) {
+    clearInterval(waitInterval)
   }
 })
 </script>

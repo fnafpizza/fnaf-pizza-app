@@ -57,7 +57,7 @@
 
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <NuxtLink
-          to="/orders"
+          :to="`/orders?waitFor=${sessionId}`"
           class="px-6 py-3 bg-fnaf-gold text-black font-bold rounded-lg hover:bg-opacity-80 transition-all duration-300 text-center"
         >
           Track Your Order
