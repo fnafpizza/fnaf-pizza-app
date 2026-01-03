@@ -98,8 +98,32 @@ const { orders, loading, error, refresh, connected } = useSocketOrders({
 // Get user's order IDs from localStorage
 const myOrderIds = ref<string[]>([])
 
+/**
+ * Check if an order belongs to the current user
+ * Normalizes IDs for comparison to handle edge cases
+ */
 const isMyOrder = (orderId: string) => {
-  return myOrderIds.value.includes(orderId)
+  const normalizedOrderId = orderId?.trim() || ''
+  return myOrderIds.value.some(id => id.trim() === normalizedOrderId)
+}
+
+/**
+ * Load user's order IDs from localStorage with validation
+ */
+const loadMyOrders = () => {
+  try {
+    const cached = localStorage.getItem('fnaf-my-orders')
+    if (cached) {
+      const orders = JSON.parse(cached)
+      // Normalize all IDs (trim whitespace) and filter out invalid ones
+      myOrderIds.value = orders
+        .map((id: string) => id?.trim())
+        .filter((id: string) => id && id.length >= 5)
+    }
+  } catch (error) {
+    console.error('Error loading my orders:', error)
+    myOrderIds.value = []
+  }
 }
 
 // Order waiting mechanism
@@ -156,14 +180,23 @@ const waitForOrder = async (sessionId: string) => {
 onMounted(async () => {
   // Load user's order IDs from localStorage
   if (process.client) {
-    const cached = localStorage.getItem('fnaf-my-orders')
-    if (cached) {
-      myOrderIds.value = JSON.parse(cached)
-    }
+    loadMyOrders()
 
     // Check if we should wait for a specific order
-    const waitForSessionId = route.query.waitFor as string
+    const rawWaitFor = route.query.waitFor
+    const waitForSessionId = typeof rawWaitFor === 'string' ? rawWaitFor.trim() : ''
+
     if (waitForSessionId) {
+      // Ensure this order is marked as mine (defensive - should already be in localStorage)
+      if (!myOrderIds.value.includes(waitForSessionId)) {
+        myOrderIds.value.push(waitForSessionId)
+        try {
+          localStorage.setItem('fnaf-my-orders', JSON.stringify(myOrderIds.value))
+        } catch (error) {
+          console.error('Error saving order ID:', error)
+        }
+      }
+
       // Check if order already exists (fast webhook)
       if (!checkOrderExists(waitForSessionId)) {
         // Order doesn't exist yet, wait for it

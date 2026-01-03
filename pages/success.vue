@@ -85,20 +85,53 @@ const cartStore = useCartStore()
 const sessionId = ref('')
 const orderData = ref(null)
 
+/**
+ * Save order ID to localStorage as "my order" for highlighting
+ */
+const saveMyOrder = (orderId: string) => {
+  try {
+    // Normalize session ID (trim whitespace, ensure it's valid)
+    const normalizedId = orderId.trim()
+    if (!normalizedId || normalizedId.length < 5) {
+      console.error('Invalid session ID:', orderId)
+      return false
+    }
+
+    // Get existing orders
+    const myOrders = JSON.parse(localStorage.getItem('fnaf-my-orders') || '[]')
+
+    // Add if not already present
+    if (!myOrders.includes(normalizedId)) {
+      myOrders.push(normalizedId)
+      localStorage.setItem('fnaf-my-orders', JSON.stringify(myOrders))
+
+      // Verify it was saved
+      const saved = localStorage.getItem('fnaf-my-orders')
+      const savedOrders = saved ? JSON.parse(saved) : []
+      if (!savedOrders.includes(normalizedId)) {
+        console.error('Failed to save order ID to localStorage')
+        return false
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error saving my order:', error)
+    return false
+  }
+}
+
 onMounted(() => {
   // Get session ID from URL
-  sessionId.value = route.query.session_id || ''
+  const rawSessionId = route.query.session_id
+  sessionId.value = typeof rawSessionId === 'string' ? rawSessionId.trim() : ''
 
   // Get last order from backup
   orderData.value = cartStore.getLastOrder()
 
   // Cache this order ID as "my order" for highlighting on orders page
   if (sessionId.value) {
-    const myOrders = JSON.parse(localStorage.getItem('fnaf-my-orders') || '[]')
-    if (!myOrders.includes(sessionId.value)) {
-      myOrders.push(sessionId.value)
-      localStorage.setItem('fnaf-my-orders', JSON.stringify(myOrders))
-    }
+    saveMyOrder(sessionId.value)
   }
 
   // Clear cart
