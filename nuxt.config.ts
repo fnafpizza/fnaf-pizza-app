@@ -4,6 +4,10 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
 
+  experimental: {
+    useOxc: false
+  },
+
   css: ['~/assets/css/animations.css'],
 
   // Disable dev error overlay to show custom error page
