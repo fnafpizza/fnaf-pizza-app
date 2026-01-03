@@ -78,19 +78,18 @@ export async function readOrders(): Promise<OrdersData> {
 }
 
 /**
- * Write orders to Netlify Blobs with atomic operation
+ * Write orders to Netlify Blobs
+ * NOTE: Lock should be acquired by caller (e.g., createOrder, updateOrderStatus)
  */
 export async function writeOrders(data: OrdersData): Promise<void> {
-  return withLock(async () => {
-    try {
-      // Update lastUpdated timestamp
-      data.lastUpdated = new Date().toISOString()
+  try {
+    // Update lastUpdated timestamp
+    data.lastUpdated = new Date().toISOString()
 
-      const store = getStore(STORE_NAME)
-      await store.setJSON(ORDERS_KEY, data)
-    } catch (error: any) {
-      console.error('Failed to write orders to Netlify Blobs:', error)
-      throw error
-    }
-  })
+    const store = getStore(STORE_NAME)
+    await store.setJSON(ORDERS_KEY, data)
+  } catch (error: any) {
+    console.error('Failed to write orders to Netlify Blobs:', error)
+    throw error
+  }
 }

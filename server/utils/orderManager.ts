@@ -109,61 +109,65 @@ export async function getOrder(identifier: string): Promise<Order | null> {
 }
 
 /**
- * Update order status
+ * Update order status (atomic operation with lock)
  */
 export async function updateOrderStatus(
   identifier: string,
   newStatus: OrderStatus
 ): Promise<Order> {
-  const data = await readOrders()
+  return withLock(async () => {
+    const data = await readOrders()
 
-  const orderIndex = data.orders.findIndex(
-    o => o.id === identifier || o.orderNumber === identifier
-  )
+    const orderIndex = data.orders.findIndex(
+      o => o.id === identifier || o.orderNumber === identifier
+    )
 
-  if (orderIndex === -1) {
-    throw new Error(`Order not found: ${identifier}`)
-  }
+    if (orderIndex === -1) {
+      throw new Error(`Order not found: ${identifier}`)
+    }
 
-  const order = data.orders[orderIndex]
+    const order = data.orders[orderIndex]
 
-  // Update status, timestamp, and set manual override flag
-  order.status = newStatus
-  order.updatedAt = new Date().toISOString()
-  order.manualOverride = true
+    // Update status, timestamp, and set manual override flag
+    order.status = newStatus
+    order.updatedAt = new Date().toISOString()
+    order.manualOverride = true
 
-  await writeOrders(data)
+    await writeOrders(data)
 
-  // Emit Pusher event
-  await emitOrderEvent('order:updated', order)
+    // Emit Pusher event
+    await emitOrderEvent('order:updated', order)
 
-  return order
+    return order
+  })
 }
 
 /**
- * Delete old completed orders
+ * Delete old completed orders (atomic operation with lock)
  */
 export async function cleanupOldOrders(daysOld: number = 7): Promise<number> {
-  const data = await readOrders()
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - daysOld)
+  return withLock(async () => {
+    const data = await readOrders()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld)
 
-  const initialCount = data.orders.length
-  data.orders = data.orders.filter(order => {
-    if (order.status === OrderStatusEnum.DELIVERED) {
-      const updatedAt = new Date(order.updatedAt)
-      return updatedAt > cutoffDate
+    const initialCount = data.orders.length
+    data.orders = data.orders.filter(order => {
+      if (order.status === OrderStatusEnum.DELIVERED) {
+        const updatedAt = new Date(order.updatedAt)
+        return updatedAt > cutoffDate
+      }
+      return true
+    })
+
+    const removed = initialCount - data.orders.length
+
+    if (removed > 0) {
+      await writeOrders(data)
     }
-    return true
+
+    return removed
   })
-
-  const removed = initialCount - data.orders.length
-
-  if (removed > 0) {
-    await writeOrders(data)
-  }
-
-  return removed
 }
 
 /**
@@ -187,14 +191,15 @@ export async function getOrdersByStatus(): Promise<Record<OrderStatus, Order[]>>
 }
 
 /**
- * Auto-update order statuses based on time elapsed
+ * Auto-update order statuses based on time elapsed (atomic operation with lock)
  */
 export async function autoUpdateOrderStatuses(): Promise<number> {
-  const data = await readOrders()
-  let updatedCount = 0
-  const now = new Date()
+  return withLock(async () => {
+    const data = await readOrders()
+    let updatedCount = 0
+    const now = new Date()
 
-  for (const order of data.orders) {
+    for (const order of data.orders) {
     // Skip orders that are already delivered
     if (order.status === OrderStatusEnum.DELIVERED) {
       continue
@@ -229,13 +234,14 @@ export async function autoUpdateOrderStatuses(): Promise<number> {
     }
   }
 
-  // Save changes if any orders were updated
-  if (updatedCount > 0) {
-    await writeOrders(data)
+    // Save changes if any orders were updated
+    if (updatedCount > 0) {
+      await writeOrders(data)
 
-    // Emit Pusher event for refresh
-    await emitOrderEvent('orders:refresh', data.orders)
-  }
+      // Emit Pusher event for refresh
+      await emitOrderEvent('orders:refresh', data.orders)
+    }
 
-  return updatedCount
+    return updatedCount
+  })
 }
